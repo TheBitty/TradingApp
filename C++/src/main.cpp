@@ -7,22 +7,21 @@
 #include <chrono>
 #include <thread>
 
-struct SimpleDataStruct{ // we will first test if this gets read in python
+struct SimpleDataStruct{
   double Price;
   double volume;
   long timestamp;
   char symbol[16];
-
   //32 Bytes!
-  volatile bool data_ready; //flag for python not sent to process space?
+  volatile bool data_ready; //flag for python
+
 };
 
 void MemoryObject(){ // creates a simple shared memory object for now 
   const auto* shm_name = "/simplebuffer"; // we will test a char buffer first....
-  
   int size = sizeof(SimpleDataStruct);
-  
-  //int shm_open(const char *name, int oflag, mode_t mode);
+
+  //int shm_open(const char *name, int oflag, mode_t modeu);
 }
 
 int main(){ MemoryObject(); return 0; };

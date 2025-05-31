@@ -1,29 +1,73 @@
 #include <atomic>
-#include <sys.mman.h> // for shm_open(creating a shared memory object) 
-#include <unistd.h> // For ftruncate(Setting the size of the shared memory object) on POSIX systems 
-#include <sys.stat.h> // for mode constants
+#include <sys/mman.h> // for shm_open(creating a shared memory object)
+#include <unistd.h> // For ftruncate(Setting the size of the shared memory object) on POSIX systems
+#include <sys/stat.h> // for mode constants
 #include <iostream>
 #include <cstring>
 #include <chrono>
 #include <thread>
 #include <memory>
+#include "shared_code.h"
 
-//std::atomic<std::shared_ptr<int> atomic_ptr; we will work on this later(in stage two)
+char* create_memory_block(const char* filename, int size) {
+    std::cout << "Creating memory block " << filename << std::endl;
 
-struct SimpleDataStruct{
-  double Price;
-  double volume;
-  long timestamp;
-  char symbol[16];
-  //32 Bytes!
-  volatile bool data_ready; //flag for python
+    int shm_fd = shm_open(filename, O_CREAT | O_EXCL | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        if (errno == EEXIST) {
+            throw std::runtime_error("Shared memory already exists - use attach mode");
+        } else {
+            throw std::runtime_error("Failed to create shared memory: " + std::string(strerror(errno)));
+        }
+    }
 
-};
+    if (ftruncate(shm_fd, size) == -1) {
+        close(shm_fd);
+        shm_unlink(filename);
+        throw std::runtime_error("Failed to set shared memory size");
+    }
 
-void memory_object_creation(){ // creates a simple shared memory object for now 
-  const char* shm_name = "/simplebuffer"; // we will test a char buffer first....
-  int size = sizeof(SimpleDataStruct);
-  //int shm_open(const char *name, int oflag, mode_t mode);
-};
+    char* memory = static_cast<char*>(
+        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)
+    );
+    close(shm_fd);
 
-int main(){ memory_object_creation(); return 0; };
+    if (memory == MAP_FAILED) {
+        shm_unlink(filename);
+        throw std::runtime_error("Failed to map shared memory");
+    }
+
+    return memory;
+}
+
+char* attach_memory_block(const char* filename, int size) {
+    int shm_fd = shm_open(filename, O_RDWR, 0);
+    if (shm_fd == -1) {
+        throw std::runtime_error("Failed to open existing shared memory");
+    }
+
+    char* memory = static_cast<char*>(
+        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)
+    );
+    close(shm_fd);
+
+    if (memory == MAP_FAILED) {
+        throw std::runtime_error("Failed to map existing shared memory");
+    }
+
+    return memory;
+}
+
+bool detach_from_memory_block(char* block, int size) {
+    return munmap(block, size) != -1;
+}
+
+bool destroy_memory_block(const char* filename) {
+    return shm_unlink(filename) != -1;
+}
+
+
+int main(int argc, char** argv) {
+
+    return 0;
+}

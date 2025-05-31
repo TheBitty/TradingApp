@@ -1,7 +1,6 @@
 #include <atomic>
 #include <sys.mman.h> // for shm_open(creating a shared memory object) 
 #include <unistd.h> // For ftruncate(Setting the size of the shared memory object) on POSIX systems 
-#include "~TradingApp/C++/src/SharedMem.h" // shared code 
 #include <sys.stat.h> // for mode constants
 #include <iostream>
 #include <cstring>
@@ -9,7 +8,7 @@
 #include <thread>
 #include <memory>
 
-std::atomic<std::shared_ptr<int> atomic_ptr;
+//std::atomic<std::shared_ptr<int> atomic_ptr; we will work on this later(in stage two)
 
 struct SimpleDataStruct{
   double Price;

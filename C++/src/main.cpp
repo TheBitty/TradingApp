@@ -1,5 +1,4 @@
 #include <atomic>
-
 #include <sys.mman.h> // for shm_open(creating a shared memory object) 
 #include <unistd.h> // For ftruncate(Setting the size of the shared memory object) on POSIX systems 
 #include "~TradingApp/C++/src/SharedMem.h" // shared code 
@@ -8,6 +7,10 @@
 #include <cstring>
 #include <chrono>
 #include <thread>
+#include <memory>
+
+std::atomic<std::shared_ptr<int> atomic_ptr;
+
 struct SimpleDataStruct{
   double Price;
   double volume;
@@ -18,11 +21,10 @@ struct SimpleDataStruct{
 
 };
 
-void MemoryObject(){ // creates a simple shared memory object for now 
+void memory_object_creation(){ // creates a simple shared memory object for now 
   const char* shm_name = "/simplebuffer"; // we will test a char buffer first....
   int size = sizeof(SimpleDataStruct);
-
   //int shm_open(const char *name, int oflag, mode_t mode);
-}
+};
 
-int main(){ MemoryObject(); return 0; };
+int main(){ memory_object_creation(); return 0; };

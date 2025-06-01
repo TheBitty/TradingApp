@@ -4,15 +4,12 @@
 #include <sys/stat.h> // for mode constants
 #include <iostream>
 #include <cstring>
-#include <chrono>
-#include <thread>
-#include <memory>
 #include "shared_code.h"
 
 char* create_memory_block(const char* filename, int size) {
     std::cout << "Creating memory block " << filename << std::endl;
 
-    int shm_fd = shm_open(filename, O_CREAT | O_EXCL | O_RDWR, 0666);
+    const int shm_fd = shm_open(filename, O_CREAT | O_EXCL | O_RDWR, 0666);
     if (shm_fd == -1) {
         if (errno == EEXIST) {
             throw std::runtime_error("Shared memory already exists - use attach mode");
@@ -27,7 +24,7 @@ char* create_memory_block(const char* filename, int size) {
         throw std::runtime_error("Failed to set shared memory size");
     }
 
-    char* memory = static_cast<char*>(
+    auto memory = static_cast<char*>(
         mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)
     );
     close(shm_fd);
@@ -46,7 +43,7 @@ char* attach_memory_block(const char* filename, int size) {
         throw std::runtime_error("Failed to open existing shared memory");
     }
 
-    char* memory = static_cast<char*>(
+    auto memory = static_cast<char*>(
         mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)
     );
     close(shm_fd);

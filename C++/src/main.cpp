@@ -4,7 +4,7 @@
 #include <sys/stat.h> // for mode constants
 #include <iostream>
 #include <cstring>
-#include "shared_code.h"
+#include "include/shared_code.h"
 
 char* create_memory_block(const char* filename, int size) {
     std::cout << "Creating memory block " << filename << std::endl;

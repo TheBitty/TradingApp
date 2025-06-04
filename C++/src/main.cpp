@@ -8,7 +8,7 @@
 
 char* create_memory_block(const char* filename, int size) {
     std::cout << "Creating memory block " << filename << std::endl;
-
+  
     const int shm_fd = shm_open(filename, O_CREAT | O_EXCL | O_RDWR, 0666);
     if (shm_fd == -1) {
         if (errno == EEXIST) {
@@ -35,7 +35,7 @@ char* create_memory_block(const char* filename, int size) {
     }
 
     return memory;
-}
+} 
 
 char* attach_memory_block(const char* filename, int size) {
     int shm_fd = shm_open(filename, O_RDWR, 0);

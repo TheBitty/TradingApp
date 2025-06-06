@@ -10,22 +10,20 @@ import mmap
 import os
 from typing import Optional, NamedTuple
 
-class MarketData(NamedTuple):
-    """Market data structure matching the C++ SimpleMarketData struct"""
+class TradingData(NamedTuple):
+    """Trading data structure matching the C++ TradingData struct"""
     price: float
-    volume: float
     timestamp: int
-    symbol: str
-    data_ready: bool
+    volume: int
+    valid: bool
 
 class SharedMemoryConsumer:
-    """Consumer for reading market data from shared memory"""
+    """Consumer for reading trading data from shared memory"""
 
-    # Struct format: double, double, long, 16 chars, bool + padding
-    # 'd' = double (8 bytes), 'q' = long long (8 bytes),
-    # '16s' = 16 character string, 'B' = unsigned char (bool)
-    # '7x' = 7 bytes padding to align to 8-byte boundary
-    STRUCT_FORMAT = 'ddq16sB7x'  # Total: 48 bytes
+    # Struct format matching C++ TradingData:
+    # atomic<double> price (8 bytes), atomic<uint64_t> timestamp (8 bytes),
+    # atomic<int32_t> volume (4 bytes), atomic<bool> valid (1 byte) + padding
+    STRUCT_FORMAT = 'dQiB3x'  # Total: 24 bytes
     STRUCT_SIZE = struct.calcsize(STRUCT_FORMAT)
 
     def __init__(self, shm_name: str = "/trading_data"):
@@ -55,8 +53,8 @@ class SharedMemoryConsumer:
             print("Make sure the C++ producer is running first!")
             return False
 
-    def read_market_data(self) -> Optional[MarketData]:
-        """Read current market data from shared memory"""
+    def read_trading_data(self) -> Optional[TradingData]:
+        """Read current trading data from shared memory"""
         if not self.memory_map:
             return None
 
@@ -68,19 +66,15 @@ class SharedMemoryConsumer:
             # Unpack the binary data
             unpacked = struct.unpack(self.STRUCT_FORMAT, raw_data)
 
-            # Extract and clean up the symbol string
-            symbol = unpacked[3].decode('utf-8').rstrip('\x00')
-
-            return MarketData(
+            return TradingData(
                 price=unpacked[0],
-                volume=unpacked[1],
-                timestamp=unpacked[2],
-                symbol=symbol,
-                data_ready=bool(unpacked[4])
+                timestamp=unpacked[1],
+                volume=unpacked[2],
+                valid=bool(unpacked[3])
             )
 
         except Exception as e:
-            print(f"Error reading market data: {e}")
+            print(f"Error reading trading data: {e}")
             return None
 
     def monitor_data(self, duration: float = 30.0):
@@ -88,19 +82,19 @@ class SharedMemoryConsumer:
         start_time = time.time()
         last_timestamp = 0
 
-        print("Monitoring market data...")
-        print("Price    | Volume   | Symbol | Timestamp      | Ready")
-        print("-" * 55)
+        print("Monitoring trading data...")
+        print("Price    | Volume   | Timestamp      | Valid")
+        print("-" * 45)
 
         while time.time() - start_time < duration:
-            data = self.read_market_data()
+            data = self.read_trading_data()
 
             if data and data.timestamp > last_timestamp:
-                print(f"{data.price:8.2f} | {data.volume:8.0f} | {data.symbol:6s} | "
-                      f"{data.timestamp:13d} | {data.data_ready}")
+                print(f"{data.price:8.2f} | {data.volume:8d} | "
+                      f"{data.timestamp:13d} | {data.valid}")
                 last_timestamp = data.timestamp
 
-            time.sleep(0.1)  # Check 10 times per second
+            time.sleep(0.001)  # Check 1000 times per second for low latency
 
     def disconnect(self):
         """Clean up resources"""

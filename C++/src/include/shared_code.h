@@ -12,19 +12,66 @@
 #include <type_traits>
 #include <errno.h>
 #include <atomic>        // For atomic operations needed in trading
+#include "trading_system.h"
 
-// Low-level functions for shared memory operations - DECLARATIONS ONLY
-char* create_memory_block(const char* filename, int size);
-char* attach_memory_block(const char* filename, int size);
-bool detach_from_memory_block(char* block, int size);
-bool destroy_memory_block(const char* filename);
+// Low-level functions for shared memory operations - IMPLEMENTATIONS
+inline char* create_memory_block(const char* filename, int size) {
+    std::cout << "Creating memory block " << filename << std::endl;
+  
+    const int shm_fd = shm_open(filename, O_CREAT | O_EXCL | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        if (errno == EEXIST) {
+            throw std::runtime_error("Shared memory already exists - use attach mode");
+        } else {
+            throw std::runtime_error("Failed to create shared memory: " + std::string(strerror(errno)));
+        }
+    }
 
-struct TradingData {
-    std::atomic<double> price{0.0};
-    std::atomic<uint64_t> timestamp{0};
-    std::atomic<int32_t> volume{0};
-    std::atomic<bool> valid{false};
-};
+    if (ftruncate(shm_fd, size) == -1) {
+        close(shm_fd);
+        shm_unlink(filename);
+        throw std::runtime_error("Failed to set shared memory size");
+    }
+
+    auto memory = static_cast<char*>(
+        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)
+    );
+    close(shm_fd);
+
+    if (memory == MAP_FAILED) {
+        shm_unlink(filename);
+        throw std::runtime_error("Failed to map shared memory");
+    }
+
+    return memory;
+}
+
+inline char* attach_memory_block(const char* filename, int size) {
+    int shm_fd = shm_open(filename, O_RDWR, 0);
+    if (shm_fd == -1) {
+        throw std::runtime_error("Failed to open existing shared memory");
+    }
+
+    auto memory = static_cast<char*>(
+        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0)
+    );
+    close(shm_fd);
+
+    if (memory == MAP_FAILED) {
+        throw std::runtime_error("Failed to map existing shared memory");
+    }
+
+    return memory;
+}
+
+inline bool detach_from_memory_block(char* block, int size) {
+    return munmap(block, size) != -1;
+}
+
+inline bool destroy_memory_block(const char* filename) {
+    return shm_unlink(filename) != -1;
+}
+
 
 template<typename T>
 class SharedMemory {

@@ -1,0 +1,2 @@
+timestamp,symbol,open,high,low,close,volume,price,source
+1735516800,AAPL,150.25,152.40,149.80,151.75,2500000,151.75,YFinance
